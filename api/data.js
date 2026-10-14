@@ -1,11 +1,11 @@
 // Vercel Serverless Function: /api/data
-// Connects to Neon PostgreSQL for real-time telemetry storage and retrieval
+// Connects to Neon PostgreSQL for real-time ESP32 telemetry storage and retrieval
 
 const DEFAULT_DATABASE_URL =
   process.env.DATABASE_URL ||
   'postgresql://neondb_owner:npg_P9aDEo0MByKX@ep-wandering-star-b5zfvt1r-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require';
 
-// Neon HTTP SQL Query Helper (runs over native fetch, zero cold-start, 100% serverless compatible)
+// Neon HTTP SQL Query Helper
 async function executeSql(query, params = []) {
   const hostMatch = DEFAULT_DATABASE_URL.match(/@([^/:]+)/);
   const host = hostMatch ? hostMatch[1] : 'ep-wandering-star-b5zfvt1r-pooler.c-7.us-east-2.aws.neon.tech';
@@ -55,6 +55,7 @@ async function ensureTable() {
         source VARCHAR(50) DEFAULT 'esp32',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON telemetry_logs (created_at DESC);
     `);
     tableChecked = true;
   } catch (err) {
@@ -63,7 +64,7 @@ async function ensureTable() {
 }
 
 export default async function handler(req, res) {
-  // Open CORS configuration for IoT devices & Web dashboards
+  // CORS configuration
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -78,10 +79,12 @@ export default async function handler(req, res) {
 
   await ensureTable();
 
-  // POST: Receive new telemetry from ESP32 or Dashboard and persist to Neon PostgreSQL
+  // POST: Receive authentic telemetry from ESP32 and save directly to Neon PostgreSQL
   if (req.method === 'POST') {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+
+      // Validate required sensor payload from ESP32
       const raw = Math.round(Number(body.turbidityRaw ?? body.turbidity ?? 0));
       const ir = Number(body.irDetected ?? body.ir ?? 0);
       const volt = Number(body.voltage ?? ((raw / 4095) * 3.3));
@@ -102,7 +105,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        message: 'Telemetry saved to Neon PostgreSQL successfully',
+        message: 'ESP32 telemetry saved to Neon PostgreSQL',
         data: {
           id: inserted.id,
           turbidityRaw: inserted.turbidity_raw,
@@ -126,18 +129,20 @@ export default async function handler(req, res) {
     }
   }
 
-  // GET: Fetch latest telemetry and recent history from Neon PostgreSQL
+  // GET: Fetch latest genuine ESP32 telemetry from Neon PostgreSQL
   try {
     const rows = await executeSql(
       `SELECT id, turbidity_raw, voltage, ir_detected, contamination_risk, buzzer_active, rssi, uptime, source, created_at
        FROM telemetry_logs
        ORDER BY created_at DESC
-       LIMIT 25;`
+       LIMIT 30;`
     );
 
+    // If records exist from the ESP32, return them
     if (rows && rows.length > 0) {
       const latest = rows[0];
       return res.status(200).json({
+        hasData: true,
         turbidityRaw: latest.turbidity_raw,
         voltage: Number(latest.voltage),
         irDetected: latest.ir_detected,
@@ -159,34 +164,19 @@ export default async function handler(req, res) {
       });
     }
 
-    // Default response if table is currently empty
+    // No telemetry received from ESP32 yet
     return res.status(200).json({
-      turbidityRaw: 1650,
-      voltage: 1.33,
-      irDetected: 0,
-      contaminationRisk: 0,
-      buzzerActive: 0,
-      rssi: -58,
-      uptime: 0,
-      source: 'neon-db-ready',
-      timestamp: new Date().toISOString(),
+      hasData: false,
+      message: 'Waiting for ESP32 telemetry...',
       dbConnected: true,
       history: []
     });
   } catch (err) {
     console.error('GET Error:', err.message);
-    return res.status(200).json({
-      turbidityRaw: 1650,
-      voltage: 1.33,
-      irDetected: 0,
-      contaminationRisk: 0,
-      buzzerActive: 0,
-      rssi: -60,
-      uptime: 0,
-      source: 'fallback',
-      timestamp: new Date().toISOString(),
-      dbConnected: false,
-      dbError: err.message
+    return res.status(500).json({
+      hasData: false,
+      error: err.message,
+      dbConnected: false
     });
   }
 }

@@ -12,7 +12,7 @@ Microplastics in aquatic ecosystems pose severe threats to the environment and h
 ## 🚀 Key Features
 - **Real-Time Particle Detection**: Measures water turbidity and light transmission/scattering to identify suspended particulate matter.
 - **Audio & Visual Alerts**: Instant alerts through an onboard active buzzer and a 16x2 I2C LCD display.
-- **Interactive Web Dashboards**: Responsive HTML/JavaScript dashboards (`embded dashboard new one.html` and `webdash.html`) featuring real-time charts (Chart.js), threshold indicators, and status monitoring.
+- **Interactive Web Dashboard**: Responsive HTML/JavaScript dashboard (`embded dashboard new one.html`) featuring real-time charts (Chart.js), threshold indicators, and status monitoring.
 - **Serial Telemetry**: Logs sensor values (turbidity, photodiode levels, detection flags) over 115200 baud serial connection for calibration and debugging.
 
 ---
@@ -33,7 +33,6 @@ Microplastics in aquatic ecosystems pose severe threats to the environment and h
   - `priethwin_github_arduniocodemicroplastic_project.ino`: Arduino IDE sketch for ESP32.
 - **`code fi.txt`**: ESP32 firmware source code with turbidity sensor, IR sensor, 16x2 I2C LCD, and buzzer alerts.
 - **`embded dashboard new one.html`**: Comprehensive IoT web dashboard with interactive charts, gauge displays, and status history.
-- **`webdash.html`**: Lightweight telemetry viewer.
 
 ---
 

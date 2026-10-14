@@ -29,21 +29,20 @@ Microplastics in aquatic ecosystems pose severe threats to the environment and h
 ---
 
 ## 📂 Repository Contents
-- **`code fi.txt`**: Main ESP32 / Arduino firmware incorporating turbidity sensor, IR sensor, 16x2 I2C LCD, and buzzer alerts.
-- **`embded project test code.txt`**: Experimental firmware calibrating laser and photodiode analog readings against detection thresholds.
+- **`priethwin_github_microplastic_project/`**:
+  - `priethwin_github_arduniocodemicroplastic_project.ino`: Arduino IDE sketch for ESP32.
+- **`code fi.txt`**: ESP32 firmware source code with turbidity sensor, IR sensor, 16x2 I2C LCD, and buzzer alerts.
 - **`embded dashboard new one.html`**: Comprehensive IoT web dashboard with interactive charts, gauge displays, and status history.
 - **`webdash.html`**: Lightweight telemetry viewer.
-- **`PROJECT.. MICROPLASTIC DETECTION.pptx` / `001.pptx`**: Project presentations covering problem statement, system architecture, methodology, and results.
-- **Project Reports & Lab Records**: Supporting academic and lab documentation.
 
 ---
 
 ## 💻 Firmware Setup & Flashing
 1. Open the [Arduino IDE](https://www.arduino.cc/en/software).
-2. Install the **ESP32 Board Package** (`esp32` by Espressif Systems).
-3. Install required libraries:
+2. Open `priethwin_github_microplastic_project/priethwin_github_arduniocodemicroplastic_project.ino`.
+3. Install the **ESP32 Board Package** (`esp32` by Espressif Systems).
+4. Install required libraries:
    - `LiquidCrystal_I2C` (by Frank de Brabander)
    - `Wire.h` (Built-in)
-4. Copy code from `code fi.txt` (or `embded project test code.txt`) into a new `.ino` sketch.
 5. Connect your ESP32 via USB, select your board and COM port, and click **Upload**.
 6. Open Serial Monitor at **115200 baud** to view real-time readings.

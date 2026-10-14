@@ -1,0 +1,20 @@
+{
+  "name": "microplastic-detection-in-water",
+  "version": "1.0.0",
+  "description": "IoT Web Dashboard and Embedded Telemetry for Microplastic Detection in Water",
+  "homepage": "https://github.com/Priethwin-R/micro-plastic-detection-in-water",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "microplastic-detection",
+    "iot",
+    "esp32",
+    "vercel",
+    "telemetry",
+    "dashboard"
+  ],
+  "author": "Priethwin-R",
+  "license": "MIT"
+}

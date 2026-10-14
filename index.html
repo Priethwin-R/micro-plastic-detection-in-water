@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microplastic Detection IoT Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #131c2e;
+      --border: #22314e;
+      --text: #f1f5f9;
+      --muted: #8492a6;
+      --cyan: #06b6d4;
+      --green: #10b981;
+      --red: #f43f5e;
+      --amber: #f59e0b;
+      --blue: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .title-area h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-area p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 10px var(--red);
+      transition: all 0.3s ease;
+    }
+
+    .dot.online {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+    }
+
+    .dot.sim {
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    /* Mode Banner & Controls */
+    .controls-banner {
+      width: 100%;
+      max-width: 1200px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .mode-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .mode-select-wrap select, .mode-select-wrap input {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      outline: none;
+    }
+
+    .sim-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-clean {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .btn-clean:hover { background: var(--green); color: #fff; }
+
+    .btn-spike {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: var(--red);
+      color: var(--red);
+    }
+    .btn-spike:hover { background: var(--red); color: #fff; }
+
+    .btn-toggle {
+      background: #1e293b;
+      border-color: var(--border);
+      color: var(--muted);
+    }
+    .btn-toggle.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: #33476f;
+    }
+
+    .card-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* Column spans */
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+
+    @media (max-width: 992px) {
+      .col-3, .col-4, .col-6, .col-8 { grid-column: span 12; }
+    }
+
+    .metric-value {
+      font-size: 2.1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .metric-unit {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    /* Circular Ring Progress */
+    .ring-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .ring-circle {
+      position: relative;
+      width: 80px;
+      height: 80px;
+    }
+
+    .ring-circle svg {
+      transform: rotate(-90deg);
+      width: 80px;
+      height: 80px;
+    }
+
+    .ring-circle circle {
+      fill: none;
+      stroke-width: 7;
+      stroke-linecap: round;
+    }
+
+    .ring-bg { stroke: #22314e; }
+    .ring-bar {
+      stroke: var(--cyan);
+      stroke-dasharray: 220;
+      stroke-dashoffset: 220;
+      transition: stroke-dashoffset 0.4s ease, stroke 0.4s ease;
+    }
+
+    /* Indicator Bulbs */
+    .indicator-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .indicator-lamp {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #25334c;
+      transition: all 0.3s ease;
+    }
+
+    .indicator-lamp.green {
+      background: var(--green);
+      box-shadow: 0 0 12px var(--green);
+    }
+
+    .indicator-lamp.red {
+      background: var(--red);
+      box-shadow: 0 0 14px var(--red);
+    }
+
+    .indicator-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    /* Event Log */
+    .log-container {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      height: 120px;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: 'Consolas', monospace;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .log-item {
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    /* Quick Sim Slider */
+    .sim-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .sim-slider-wrap input[type=range] {
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    footer {
+      margin-top: 24px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    footer a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-area">
+      <h1>🌊 Microplastic Optical Telemetry</h1>
+      <p>Embedded IoT Sensing System &bull; Turbidity &amp; Light Scattering Analysis</p>
+    </div>
+    <div class="header-actions">
+      <div class="status-badge">
+        <div class="dot online" id="netDot"></div>
+        <span id="netText">Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Cloud / Device / Simulation Mode Banner -->
+  <div class="controls-banner">
+    <div class="mode-select-wrap">
+      <label for="sourceMode" style="font-weight: 600; color: var(--muted);">Data Source:</label>
+      <select id="sourceMode" onchange="changeMode()">
+        <option value="sim">🚀 Demo Simulation (Realistic)</option>
+        <option value="cloud">📡 Vercel Cloud API (/api/data)</option>
+        <option value="local">🔌 Local ESP32 (Custom Endpoint)</option>
+      </select>
+      <input type="text" id="customUrl" placeholder="http://192.168.1.50/data" style="display:none; width: 190px;" onchange="saveCustomUrl()">
+    </div>
+
+    <div class="sim-actions" id="simControls">
+      <div class="sim-slider-wrap">
+        <span>Turbidity:</span>
+        <input type="range" id="simTurbSlider" min="500" max="4000" value="1650" oninput="onSliderChange()">
+        <span id="simTurbVal" style="color: var(--cyan); font-weight: 700; width: 36px;">1650</span>
+      </div>
+      <button class="btn btn-clean" onclick="setPreset('clean')">Clean Water</button>
+      <button class="btn btn-spike" onclick="setPreset('spike')">Microplastic Spike</button>
+      <button class="btn btn-toggle" id="btnAudio" onclick="toggleAudio()">🔊 Audio Off</button>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+
+    <!-- 1. Circular Turbidity Gauge -->
+    <div class="card col-4">
+      <span class="card-label">1. Turbidity Reading</span>
+      <div class="ring-wrapper">
+        <div class="ring-circle">
+          <svg>
+            <circle class="ring-bg" cx="40" cy="40" r="35"></circle>
+            <circle class="ring-bar" id="ringBar" cx="40" cy="40" r="35"></circle>
+          </svg>
+        </div>
+        <div>
+          <div class="metric-value" id="valRaw">0</div>
+          <span class="metric-unit">Raw ADC / 4095</span>
+        </div>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--muted); margin-top: 10px;" id="valTurbPercent">0% Turbidity</div>
+    </div>
+
+    <!-- 2. Analog Sensor Voltage -->
+    <div class="card col-4">
+      <span class="card-label">2. Sensor Output Voltage</span>
+      <div>
+        <div class="metric-value" id="valVolt">0.00 <span class="metric-unit">V</span></div>
+        <p style="font-size: 0.8rem; color: var(--muted); margin-top: 6px;">Ref: 3.3V ESP32 ADC (GPIO 34)</p>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--cyan);" id="voltState">Range: Optimal Baseline</div>
+    </div>
+
+    <!-- 3. IR Optical Beam Status -->
+    <div class="card col-4">
+      <span class="card-label">3. Optical IR Beam (GPIO 15)</span>
+      <div class="indicator-box">
+        <div class="indicator-lamp green" id="irLamp"></div>
+        <div class="indicator-text" id="irText" style="color: var(--green);">CLEAR</div>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--muted); margin-top: 10px;">Beam Path Interruption Sensor</div>
+    </div>
+
+    <!-- 4. Contamination Decision Risk -->
+    <div class="card col-6">
+      <span class="card-label">4. Contamination State Decision</span>
+      <div class="indicator-box">
+        <div class="indicator-lamp green" id="riskLamp"></div>
+        <div class="indicator-text" id="riskText" style="color: var(--green);">SAMPLE CLEAR (NORMAL)</div>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--muted); margin-top: 8px;">Decision Rule: IR Interrupted &amp; Turbidity &gt; 2000</div>
+    </div>
+
+    <!-- 5. Buzzer / Alarm State -->
+    <div class="card col-6">
+      <span class="card-label">5. Physical &amp; Audible Buzzer (GPIO 4)</span>
+      <div class="indicator-box">
+        <div class="indicator-lamp" id="buzzerLamp"></div>
+        <div class="indicator-text" id="buzzerText" style="color: var(--muted);">SILENT / INACTIVE</div>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--muted); margin-top: 8px;">Hardware Buzzer Alarm Trigger</div>
+    </div>
+
+    <!-- 6. Real-Time Telemetry Graph -->
+    <div class="card col-8">
+      <span class="card-label">6. Real-Time Telemetry Stream</span>
+      <div style="height: 180px; position: relative;">
+        <canvas id="liveChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 7. Hardware & Network Diagnostics -->
+    <div class="card col-4">
+      <span class="card-label">7. System Diagnostics</span>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin: 6px 0;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+          <span style="color: var(--muted);">Wi-Fi RSSI:</span>
+          <span id="valRssi" style="font-weight: 700;">-58 dBm</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+          <span style="color: var(--muted);">Device Uptime:</span>
+          <span id="valUptime" style="font-weight: 700;">0m 0s</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+          <span style="color: var(--muted);">Threshold:</span>
+          <span style="color: var(--amber); font-weight: 600;">2000 ADC</span>
+        </div>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--cyan);" id="modeSubtext">Simulation Mode Active</div>
+    </div>
+
+    <!-- 8. Activity Stream / Event Log -->
+    <div class="card col-12">
+      <span class="card-label">8. System Activity &amp; Decision Log</span>
+      <div class="log-container" id="eventLog">
+        <div class="log-item">[System] Dashboard initialized. Ready for telemetry stream.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Microplastic Detection in Water &bull; <a href="https://github.com/Priethwin-R/micro-plastic-detection-in-water" target="_blank" rel="noopener">GitHub Repository</a> &bull; Deployed on Vercel
+  </footer>
+
+  <script>
+    // State management
+    let currentMode = "sim";
+    let customEndpoint = localStorage.getItem("customEndpoint") || "http://microplastic.local/data";
+    document.getElementById("customUrl").value = customEndpoint;
+
+    let simState = {
+      turbidity: 1650,
+      ir: 0,
+      uptime: 0,
+      autoNoise: true
+    };
+
+    let audioEnabled = false;
+    let audioCtx = null;
+    let lastAlertState = null;
+    const MAX_POINTS = 20;
+
+    // Web Audio alert beep
+    function playAlertBeep() {
+      if (!audioEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch (e) {}
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const btn = document.getElementById("btnAudio");
+      if (audioEnabled) {
+        btn.innerText = "🔊 Audio On";
+        btn.className = "btn btn-toggle active";
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } else {
+        btn.innerText = "🔇 Audio Off";
+        btn.className = "btn btn-toggle";
+      }
+    }
+
+    // Chart.js Configuration
+    const ctx = document.getElementById('liveChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Turbidity (ADC)',
+            data: [],
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Microplastic Trigger',
+            data: [],
+            borderColor: '#f43f5e',
+            backgroundColor: 'rgba(244, 63, 94, 0.15)',
+            borderWidth: 2,
+            stepped: true,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 250 },
+        scales: {
+          x: { display: false },
+          y: {
+            min: 0,
+            max: 4095,
+            grid: { color: '#22314e' },
+            ticks: { color: '#8492a6', font: { size: 10 } }
+          },
+          y1: {
+            min: 0,
+            max: 1.5,
+            position: 'right',
+            grid: { display: false },
+            ticks: { display: false }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#8492a6', font: { size: 10 } } }
+        }
+      }
+    });
+
+    function addLog(msg) {
+      const container = document.getElementById('eventLog');
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      item.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      container.prepend(item);
+      if (container.children.length > 50) container.removeChild(container.lastChild);
+    }
+
+    function changeMode() {
+      currentMode = document.getElementById("sourceMode").value;
+      const customInput = document.getElementById("customUrl");
+      const simControls = document.getElementById("simControls");
+      const modeSub = document.getElementById("modeSubtext");
+
+      if (currentMode === "local") {
+        customInput.style.display = "inline-block";
+        simControls.style.display = "none";
+        modeSub.innerText = "Direct ESP32 Polling";
+        addLog(`[Config] Switched to local device: ${customEndpoint}`);
+      } else if (currentMode === "cloud") {
+        customInput.style.display = "none";
+        simControls.style.display = "none";
+        modeSub.innerText = "Cloud Vercel API (/api/data)";
+        addLog("[Config] Switched to Vercel Serverless Telemetry API.");
+      } else {
+        customInput.style.display = "none";
+        simControls.style.display = "flex";
+        modeSub.innerText = "Interactive Simulation Active";
+        addLog("[Config] Switched to Interactive Simulation Mode.");
+      }
+    }
+
+    function saveCustomUrl() {
+      customEndpoint = document.getElementById("customUrl").value.trim();
+      localStorage.setItem("customEndpoint", customEndpoint);
+      addLog(`[Config] Target endpoint updated: ${customEndpoint}`);
+    }
+
+    function onSliderChange() {
+      simState.turbidity = parseInt(document.getElementById("simTurbSlider").value, 10);
+      document.getElementById("simTurbVal").innerText = simState.turbidity;
+      simState.autoNoise = false;
+    }
+
+    function setPreset(type) {
+      if (type === 'clean') {
+        simState.turbidity = 1450 + Math.floor(Math.random() * 100);
+        simState.ir = 0;
+        simState.autoNoise = true;
+        document.getElementById("simTurbSlider").value = simState.turbidity;
+        document.getElementById("simTurbVal").innerText = simState.turbidity;
+        addLog("[Sim] Loaded preset: Clean water baseline.");
+      } else if (type === 'spike') {
+        simState.turbidity = 2750 + Math.floor(Math.random() * 300);
+        simState.ir = 1;
+        simState.autoNoise = false;
+        document.getElementById("simTurbSlider").value = simState.turbidity;
+        document.getElementById("simTurbVal").innerText = simState.turbidity;
+        addLog("[Sim] Injected: Microplastic particle contamination spike!");
+      }
+    }
+
+    function generateSimData() {
+      simState.uptime += 1;
+      if (simState.autoNoise) {
+        // Natural small fluctuation
+        const jitter = Math.floor(Math.random() * 60) - 30;
+        simState.turbidity = Math.max(800, Math.min(3800, simState.turbidity + jitter));
+        document.getElementById("simTurbSlider").value = simState.turbidity;
+        document.getElementById("simTurbVal").innerText = simState.turbidity;
+      }
+
+      const raw = simState.turbidity;
+      const ir = simState.ir;
+      const risk = (ir === 1 && raw > 2000) ? 1 : 0;
+      const buzzer = risk;
+
+      return {
+        turbidityRaw: raw,
+        voltage: (raw / 4095) * 3.3,
+        irDetected: ir,
+        contaminationRisk: risk,
+        buzzerActive: buzzer,
+        rssi: -58 + Math.floor(Math.random() * 6) - 3,
+        uptime: simState.uptime,
+        source: 'sim'
+      };
+    }
+
+    function updateUI(data) {
+      // 1. Turbidity
+      document.getElementById('valRaw').innerText = data.turbidityRaw;
+      const percent = Math.min(100, Math.round((data.turbidityRaw / 4095) * 100));
+      document.getElementById('valTurbPercent').innerText = `${percent}% Scale Turbidity`;
+      const offset = 220 - (220 * (percent / 100));
+      const ringBar = document.getElementById('ringBar');
+      ringBar.style.strokeDashoffset = offset;
+      ringBar.style.stroke = data.turbidityRaw > 2000 ? "var(--red)" : "var(--cyan)";
+
+      // 2. Voltage
+      document.getElementById('valVolt').innerHTML = `${Number(data.voltage).toFixed(2)} <span class="metric-unit">V</span>`;
+      const voltState = document.getElementById('voltState');
+      if (data.turbidityRaw > 2000) {
+        voltState.innerText = "Range: High Scatter Warning";
+        voltState.style.color = "var(--red)";
+      } else {
+        voltState.innerText = "Range: Optimal Baseline";
+        voltState.style.color = "var(--cyan)";
+      }
+
+      // 3. Optical IR Beam
+      const irLamp = document.getElementById('irLamp');
+      const irText = document.getElementById('irText');
+      if (data.irDetected === 1) {
+        irLamp.className = "indicator-lamp red";
+        irText.innerText = "INTERRUPTED (PARTICLE)";
+        irText.style.color = "var(--red)";
+      } else {
+        irLamp.className = "indicator-lamp green";
+        irText.innerText = "CLEAR";
+        irText.style.color = "var(--green)";
+      }
+
+      // 4. Contamination Decision
+      const riskLamp = document.getElementById('riskLamp');
+      const riskText = document.getElementById('riskText');
+      if (data.contaminationRisk === 1) {
+        riskLamp.className = "indicator-lamp red";
+        riskText.innerText = "SUSPECTED MICROPLASTICS DETECTED";
+        riskText.style.color = "var(--red)";
+        playAlertBeep();
+        if (lastAlertState !== true) {
+          addLog("⚠️ CRITICAL: Particle detected above threshold (Microplastics identified)!");
+          lastAlertState = true;
+        }
+      } else {
+        riskLamp.className = "indicator-lamp green";
+        riskText.innerText = "SAMPLE CLEAR (NORMAL)";
+        riskText.style.color = "var(--green)";
+        if (lastAlertState !== false) {
+          addLog("✅ Water sample returned to normal baseline.");
+          lastAlertState = false;
+        }
+      }
+
+      // 5. Buzzer State
+      const bzLamp = document.getElementById('buzzerLamp');
+      const bzText = document.getElementById('buzzerText');
+      if (data.buzzerActive === 1) {
+        bzLamp.className = "indicator-lamp red";
+        bzText.innerText = "BUZZING (ALARM ACTIVE)";
+        bzText.style.color = "var(--red)";
+      } else {
+        bzLamp.className = "indicator-lamp";
+        bzText.innerText = "SILENT (STANDBY)";
+        bzText.style.color = "var(--muted)";
+      }
+
+      // 6. Chart.js update
+      const timeNow = new Date().toLocaleTimeString();
+      if (chart.data.labels.length >= MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+        chart.data.datasets[1].data.shift();
+      }
+      chart.data.labels.push(timeNow);
+      chart.data.datasets[0].data.push(data.turbidityRaw);
+      chart.data.datasets[1].data.push(data.contaminationRisk);
+      chart.update('none');
+
+      // 7. System Diagnostics
+      document.getElementById('valRssi').innerText = `${data.rssi} dBm`;
+      const mins = Math.floor(data.uptime / 60);
+      const secs = data.uptime % 60;
+      document.getElementById('valUptime').innerText = `${mins}m ${secs}s`;
+    }
+
+    async function tick() {
+      let data = null;
+      const netDot = document.getElementById('netDot');
+      const netText = document.getElementById('netText');
+
+      if (currentMode === "sim") {
+        data = generateSimData();
+        netDot.className = "dot sim";
+        netText.innerText = "Simulation Active";
+      } else {
+        const targetUrl = (currentMode === "cloud") ? "/api/data" : customEndpoint;
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 1400);
+          const res = await fetch(targetUrl, { signal: controller.signal });
+          clearTimeout(timeout);
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          data = await res.json();
+          netDot.className = "dot online";
+          netText.innerText = currentMode === "cloud" ? "Cloud Connected" : "ESP32 Online";
+        } catch (err) {
+          netDot.className = "dot";
+          netText.innerText = "Device Offline (Falling back to sim)";
+          data = generateSimData();
+        }
+      }
+
+      if (data) updateUI(data);
+    }
+
+    // Refresh telemetry every 800ms
+    setInterval(tick, 800);
+    tick();
+  </script>
+</body>
+</html>

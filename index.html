@@ -74,18 +74,18 @@
     .status-badge {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: var(--card-bg);
       border: 1px solid var(--border);
-      padding: 8px 16px;
+      padding: 7px 14px;
       border-radius: 999px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
     }
 
     .dot {
-      width: 10px;
-      height: 10px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
       background: var(--red);
       box-shadow: 0 0 10px var(--red);
@@ -95,6 +95,11 @@
     .dot.online {
       background: var(--green);
       box-shadow: 0 0 10px var(--green);
+    }
+
+    .dot.neon {
+      background: #00e599;
+      box-shadow: 0 0 10px #00e599;
     }
 
     .dot.sim {
@@ -195,7 +200,7 @@
       flex-direction: column;
       justify-content: space-between;
       position: relative;
-      transition: transform 0.2s ease, border-color 0.2s ease;
+      transition: border-color 0.2s ease;
     }
 
     .card:hover {
@@ -315,7 +320,45 @@
       line-height: 1.4;
     }
 
-    /* Quick Sim Slider */
+    /* History Table */
+    .history-card {
+      display: none;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      margin-top: 16px;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .table-wrap {
+      max-height: 240px;
+      overflow-y: auto;
+      margin-top: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      text-align: left;
+    }
+
+    th {
+      background: #090d16;
+      padding: 8px 12px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+    }
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #1a263d;
+    }
+
     .sim-slider-wrap {
       display: flex;
       align-items: center;
@@ -350,6 +393,10 @@
       <p>Embedded IoT Sensing System &bull; Turbidity &amp; Light Scattering Analysis</p>
     </div>
     <div class="header-actions">
+      <div class="status-badge" id="neonBadge" title="Neon PostgreSQL Cloud Database">
+        <div class="dot neon" id="neonDot"></div>
+        <span id="neonText">Neon DB: Connected</span>
+      </div>
       <div class="status-badge">
         <div class="dot online" id="netDot"></div>
         <span id="netText">Ready</span>
@@ -357,13 +404,13 @@
     </div>
   </header>
 
-  <!-- Cloud / Device / Simulation Mode Banner -->
+  <!-- Controls Banner -->
   <div class="controls-banner">
     <div class="mode-select-wrap">
       <label for="sourceMode" style="font-weight: 600; color: var(--muted);">Data Source:</label>
       <select id="sourceMode" onchange="changeMode()">
+        <option value="cloud" selected>📡 Vercel + Neon DB (/api/data)</option>
         <option value="sim">🚀 Demo Simulation (Realistic)</option>
-        <option value="cloud">📡 Vercel Cloud API (/api/data)</option>
         <option value="local">🔌 Local ESP32 (Custom Endpoint)</option>
       </select>
       <input type="text" id="customUrl" placeholder="http://192.168.1.50/data" style="display:none; width: 190px;" onchange="saveCustomUrl()">
@@ -378,6 +425,7 @@
       <button class="btn btn-clean" onclick="setPreset('clean')">Clean Water</button>
       <button class="btn btn-spike" onclick="setPreset('spike')">Microplastic Spike</button>
       <button class="btn btn-toggle" id="btnAudio" onclick="toggleAudio()">🔊 Audio Off</button>
+      <button class="btn btn-toggle" id="btnHistory" onclick="toggleHistoryTable()">📊 DB History</button>
     </div>
   </div>
 
@@ -443,7 +491,7 @@
 
     <!-- 6. Real-Time Telemetry Graph -->
     <div class="card col-8">
-      <span class="card-label">6. Real-Time Telemetry Stream</span>
+      <span class="card-label">6. Real-Time Telemetry Stream (Neon PostgreSQL Persisted)</span>
       <div style="height: 180px; position: relative;">
         <canvas id="liveChart"></canvas>
       </div>
@@ -462,30 +510,55 @@
           <span id="valUptime" style="font-weight: 700;">0m 0s</span>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-          <span style="color: var(--muted);">Threshold:</span>
-          <span style="color: var(--amber); font-weight: 600;">2000 ADC</span>
+          <span style="color: var(--muted);">Database Storage:</span>
+          <span style="color: #00e599; font-weight: 600;">Neon PostgreSQL</span>
         </div>
       </div>
-      <div style="font-size: 0.75rem; color: var(--cyan);" id="modeSubtext">Simulation Mode Active</div>
+      <div style="font-size: 0.75rem; color: var(--cyan);" id="modeSubtext">Cloud Mode &bull; Auto-Syncing with Neon</div>
     </div>
 
     <!-- 8. Activity Stream / Event Log -->
     <div class="card col-12">
       <span class="card-label">8. System Activity &amp; Decision Log</span>
       <div class="log-container" id="eventLog">
-        <div class="log-item">[System] Dashboard initialized. Ready for telemetry stream.</div>
+        <div class="log-item">[System] Initializing connection to Neon PostgreSQL cloud database...</div>
       </div>
     </div>
 
   </div>
 
+  <!-- Historical Data Table (Drawer) -->
+  <div class="history-card" id="historyCard">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: #fff;">📊 Neon DB Historical Records</h3>
+      <button class="btn btn-toggle" onclick="loadHistoryData()">🔄 Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Timestamp</th>
+            <th>Turbidity (ADC)</th>
+            <th>Voltage</th>
+            <th>IR Sensor</th>
+            <th>Decision Risk</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="7" style="text-align: center; color: var(--muted);">Loading records from Neon PostgreSQL...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <footer>
-    Microplastic Detection in Water &bull; <a href="https://github.com/Priethwin-R/micro-plastic-detection-in-water" target="_blank" rel="noopener">GitHub Repository</a> &bull; Deployed on Vercel
+    Microplastic Detection in Water &bull; Connected to <a href="https://neon.tech" target="_blank" rel="noopener">Neon PostgreSQL</a> &bull; Deployed on <a href="https://vercel.com" target="_blank" rel="noopener">Vercel</a>
   </footer>
 
   <script>
-    // State management
-    let currentMode = "sim";
+    let currentMode = "cloud";
     let customEndpoint = localStorage.getItem("customEndpoint") || "http://microplastic.local/data";
     document.getElementById("customUrl").value = customEndpoint;
 
@@ -499,9 +572,9 @@
     let audioEnabled = false;
     let audioCtx = null;
     let lastAlertState = null;
+    let chartPreloaded = false;
     const MAX_POINTS = 20;
 
-    // Web Audio alert beep
     function playAlertBeep() {
       if (!audioEnabled) return;
       try {
@@ -529,6 +602,40 @@
       } else {
         btn.innerText = "🔇 Audio Off";
         btn.className = "btn btn-toggle";
+      }
+    }
+
+    function toggleHistoryTable() {
+      const card = document.getElementById("historyCard");
+      const isVisible = card.style.display === "block";
+      card.style.display = isVisible ? "none" : "block";
+      const btn = document.getElementById("btnHistory");
+      btn.className = isVisible ? "btn btn-toggle" : "btn btn-toggle active";
+      if (!isVisible) loadHistoryData();
+    }
+
+    async function loadHistoryData() {
+      const tbody = document.getElementById("historyBody");
+      try {
+        const res = await fetch("/api/history?limit=30");
+        const json = await res.json();
+        if (json.rows && json.rows.length > 0) {
+          tbody.innerHTML = json.rows.map(r => `
+            <tr>
+              <td>#${r.id}</td>
+              <td style="color:var(--muted);">${new Date(r.created_at).toLocaleTimeString()}</td>
+              <td style="font-weight:700; color:${r.turbidity_raw > 2000 ? 'var(--red)' : 'var(--cyan)'}">${r.turbidity_raw}</td>
+              <td>${r.voltage} V</td>
+              <td>${r.ir_detected === 1 ? '<span style="color:var(--red);">Interrupted</span>' : '<span style="color:var(--green);">Clear</span>'}</td>
+              <td>${r.contamination_risk === 1 ? '<span style="color:var(--red); font-weight:700;">CONTAMINATED</span>' : '<span style="color:var(--green);">NORMAL</span>'}</td>
+              <td style="color:var(--muted);">${r.source || 'esp32'}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--muted);">No records found in database yet.</td></tr>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--red);">Error loading database history: ${err.message}</td></tr>`;
       }
     }
 
@@ -598,22 +705,18 @@
     function changeMode() {
       currentMode = document.getElementById("sourceMode").value;
       const customInput = document.getElementById("customUrl");
-      const simControls = document.getElementById("simControls");
       const modeSub = document.getElementById("modeSubtext");
 
       if (currentMode === "local") {
         customInput.style.display = "inline-block";
-        simControls.style.display = "none";
         modeSub.innerText = "Direct ESP32 Polling";
         addLog(`[Config] Switched to local device: ${customEndpoint}`);
       } else if (currentMode === "cloud") {
         customInput.style.display = "none";
-        simControls.style.display = "none";
-        modeSub.innerText = "Cloud Vercel API (/api/data)";
-        addLog("[Config] Switched to Vercel Serverless Telemetry API.");
+        modeSub.innerText = "Cloud Mode &bull; Auto-Syncing with Neon";
+        addLog("[Config] Connected to Vercel + Neon PostgreSQL API.");
       } else {
         customInput.style.display = "none";
-        simControls.style.display = "flex";
         modeSub.innerText = "Interactive Simulation Active";
         addLog("[Config] Switched to Interactive Simulation Mode.");
       }
@@ -631,7 +734,7 @@
       simState.autoNoise = false;
     }
 
-    function setPreset(type) {
+    async function setPreset(type) {
       if (type === 'clean') {
         simState.turbidity = 1450 + Math.floor(Math.random() * 100);
         simState.ir = 0;
@@ -647,12 +750,25 @@
         document.getElementById("simTurbVal").innerText = simState.turbidity;
         addLog("[Sim] Injected: Microplastic particle contamination spike!");
       }
+
+      // Also persist preset to Neon DB via POST /api/data
+      try {
+        await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            turbidityRaw: simState.turbidity,
+            irDetected: simState.ir,
+            contaminationRisk: (simState.ir === 1 && simState.turbidity > 2000) ? 1 : 0,
+            source: 'dashboard-sim'
+          })
+        });
+      } catch (e) {}
     }
 
     function generateSimData() {
       simState.uptime += 1;
       if (simState.autoNoise) {
-        // Natural small fluctuation
         const jitter = Math.floor(Math.random() * 60) - 30;
         simState.turbidity = Math.max(800, Math.min(3800, simState.turbidity + jitter));
         document.getElementById("simTurbSlider").value = simState.turbidity;
@@ -745,7 +861,23 @@
         bzText.style.color = "var(--muted)";
       }
 
-      // 6. Chart.js update
+      // Pre-fill history from Neon DB once
+      if (data.history && data.history.length > 0 && !chartPreloaded) {
+        chart.data.labels = [];
+        chart.data.datasets[0].data = [];
+        chart.data.datasets[1].data = [];
+        data.history.slice().reverse().forEach(h => {
+          chart.data.labels.push(new Date(h.createdAt).toLocaleTimeString());
+          chart.data.datasets[0].data.push(h.turbidityRaw);
+          chart.data.datasets[1].data.push(h.contaminationRisk);
+        });
+        chart.update();
+        chartPreloaded = true;
+        addLog(`[Neon DB] Preloaded ${data.history.length} historical readings from database.`);
+        return;
+      }
+
+      // 6. Real-time Chart push
       const timeNow = new Date().toLocaleTimeString();
       if (chart.data.labels.length >= MAX_POINTS) {
         chart.data.labels.shift();
@@ -768,6 +900,8 @@
       let data = null;
       const netDot = document.getElementById('netDot');
       const netText = document.getElementById('netText');
+      const neonDot = document.getElementById('neonDot');
+      const neonText = document.getElementById('neonText');
 
       if (currentMode === "sim") {
         data = generateSimData();
@@ -777,16 +911,25 @@
         const targetUrl = (currentMode === "cloud") ? "/api/data" : customEndpoint;
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 1400);
+          const timeout = setTimeout(() => controller.abort(), 1800);
           const res = await fetch(targetUrl, { signal: controller.signal });
           clearTimeout(timeout);
           if (!res.ok) throw new Error("HTTP " + res.status);
           data = await res.json();
+
           netDot.className = "dot online";
           netText.innerText = currentMode === "cloud" ? "Cloud Connected" : "ESP32 Online";
+
+          if (data.dbConnected) {
+            neonDot.className = "dot neon";
+            neonText.innerText = "Neon DB: Connected";
+          } else {
+            neonDot.className = "dot";
+            neonText.innerText = "Neon DB: Offline";
+          }
         } catch (err) {
           netDot.className = "dot";
-          netText.innerText = "Device Offline (Falling back to sim)";
+          netText.innerText = "Falling back to local sim";
           data = generateSimData();
         }
       }
@@ -794,8 +937,7 @@
       if (data) updateUI(data);
     }
 
-    // Refresh telemetry every 800ms
-    setInterval(tick, 800);
+    setInterval(tick, 1000);
     tick();
   </script>
 </body>

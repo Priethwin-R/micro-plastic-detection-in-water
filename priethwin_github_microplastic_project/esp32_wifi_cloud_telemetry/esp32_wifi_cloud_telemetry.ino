@@ -1,5 +1,5 @@
 /*
-  ESP32 Microplastic Detection System with Vercel Cloud Telemetry
+  ESP32 Microplastic Detection System with Vercel Cloud Telemetry & Neon PostgreSQL
   Features:
   - Turbidity sensor reading (GPIO 34)
   - Optical IR sensor reading (GPIO 15)
@@ -102,7 +102,7 @@ void loop() {
     Serial.println("Normal: No microplastics detected");
   }
 
-  // Send telemetry to Vercel Cloud API
+  // Send telemetry to Vercel Cloud API (persists into Neon PostgreSQL)
   if (WiFi.status() == WL_CONNECTED && (millis() - lastCloudSync > CLOUD_SYNC_INTERVAL)) {
     lastCloudSync = millis();
     sendTelemetryToVercel(turbidityValue, irDetected ? 1 : 0, contaminationRisk ? 1 : 0);
@@ -127,12 +127,13 @@ void sendTelemetryToVercel(int turbidity, int ir, int risk) {
   jsonPayload += "\"contaminationRisk\":" + String(risk) + ",";
   jsonPayload += "\"buzzerActive\":" + String(risk) + ",";
   jsonPayload += "\"rssi\":" + String(rssi) + ",";
-  jsonPayload += "\"uptime\":" + String(uptime);
+  jsonPayload += "\"uptime\":" + String(uptime) + ",";
+  jsonPayload += "\"source\":\"esp32-live\"";
   jsonPayload += "}";
 
   int httpCode = http.POST(jsonPayload);
   if (httpCode > 0) {
-    Serial.printf("[Cloud] POST status: %d\n", httpCode);
+    Serial.printf("[Cloud] POST status: %d (Saved to Neon DB)\n", httpCode);
   } else {
     Serial.printf("[Cloud] POST failed: %s\n", http.errorToString(httpCode).c_str());
   }

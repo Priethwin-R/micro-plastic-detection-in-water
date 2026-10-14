@@ -1,17 +1,22 @@
 {
   "name": "microplastic-detection-in-water",
   "version": "1.0.0",
-  "description": "IoT Web Dashboard and Embedded Telemetry for Microplastic Detection in Water",
+  "description": "IoT Web Dashboard and Embedded Telemetry for Microplastic Detection in Water connected to Neon PostgreSQL",
   "homepage": "https://github.com/Priethwin-R/micro-plastic-detection-in-water",
   "main": "index.html",
   "scripts": {
     "start": "npx serve ."
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
   },
   "keywords": [
     "microplastic-detection",
     "iot",
     "esp32",
     "vercel",
+    "neon",
+    "postgresql",
     "telemetry",
     "dashboard"
   ],

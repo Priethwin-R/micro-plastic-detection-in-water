@@ -1,0 +1,88 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ESP32 Pin Definitions
+#define LASER_PIN 15
+#define PHOTO_PIN 2
+#define BUZZER_PIN 4
+
+// LCD I2C address: Usually 0x27
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Change this value after testing your sensor
+int threshold = 2000;
+
+void setup() {
+
+  // Serial Monitor
+  Serial.begin(115200);
+
+  // Pin modes
+  pinMode(LASER_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  // Turn ON laser
+  digitalWrite(LASER_PIN, HIGH);
+
+  // Turn OFF buzzer initially
+  digitalWrite(BUZZER_PIN, LOW);
+
+  // Start I2C LCD
+  Wire.begin(21, 22);
+
+  lcd.init();
+  lcd.backlight();
+
+  // Starting display
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Microplastic");
+  lcd.setCursor(0, 1);
+  lcd.print("Detection System");
+
+  delay(2000);
+
+  lcd.clear();
+}
+
+void loop() {
+
+  // Read photodiode value
+  int sensorValue = analogRead(PHOTO_PIN);
+
+  // Print sensor value in Serial Monitor
+  Serial.print("Photodiode Value: ");
+  Serial.println(sensorValue);
+
+  // Check for microplastic
+  if (sensorValue < threshold) {
+
+    // Plastic detected
+    digitalWrite(BUZZER_PIN, HIGH);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("PLASTIC FOUND!");
+    lcd.setCursor(0, 1);
+    lcd.print("Value:");
+    lcd.print(sensorValue);
+
+    Serial.println("PLASTIC FOUND!");
+
+  }
+  else {
+
+    // No plastic detected
+    digitalWrite(BUZZER_PIN, LOW);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("NO PLASTIC");
+    lcd.setCursor(0, 1);
+    lcd.print("FOUND");
+
+    Serial.println("NO PLASTIC FOUND");
+  }
+
+  delay(1000);
+}

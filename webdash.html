@@ -1,0 +1,132 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ----------------- Wi-Fi Credentials -----------------
+const char* ssid     = "YOUR_WIFI_SSID";       // Enter your Wi-Fi / Hotspot SSID
+const char* password = "YOUR_WIFI_PASSWORD";   // Enter your Wi-Fi Password
+
+// ----------------- Pin Definitions -------------------
+#define TURBIDITY_PIN  34    // Analog input (AO)
+#define IR_PIN         15    // Digital input (OUT)
+#define BUZZER_PIN     4     // Digital output
+#define SDA_PIN        21    // I2C SDA
+#define SCL_PIN        22    // I2C SCL
+
+// ----------------- Hardware Objects ------------------
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Change to 0x3F if your LCD uses a different I2C address
+WebServer server(80);
+
+// ----------------- Virtual Pin Datastreams -----------
+int v0_turbidityRaw = 0;         // V0: Integer (0-4095)
+int v1_irSensorStatus = 0;       // V1: Integer (0=Clear, 1=Object/Particle)
+int v2_particleDetection = 0;    // V2: Integer (0=Normal, 1=Detected)
+String v3_detectionMessage = ""; // V3: String
+int v4_buzzerStatus = 0;         // V4: Integer (0=OFF, 1=ON)
+String v5_systemStatus = "";     // V5: String
+// V6: Handled on client (History of V0)
+int v7_currentTurbidity = 0;     // V7: Integer (0-4095)
+// V8: Handled on client (History of V2)
+
+unsigned long lastSensorRead = 0;
+
+void readSensors() {
+  // Read Turbidity (12-bit ADC: 0 - 4095)
+  v0_turbidityRaw = analogRead(TURBIDITY_PIN);
+  v7_currentTurbidity = v0_turbidityRaw;
+
+  // Read IR Sensor (Standard modules output LOW (0) upon detection)
+  int irRaw = digitalRead(IR_PIN);
+  v1_irSensorStatus = (irRaw == LOW) ? 1 : 0; 
+
+  // Microplastic / Contaminant Detection Logic
+  // Adjust threshold values (e.g., v0_turbidityRaw > 2200) according to your sample calibration
+  if (v1_irSensorStatus == 1 || v0_turbidityRaw > 2200) {
+    v2_particleDetection = 1;
+    v4_buzzerStatus = 1;
+    v3_detectionMessage = "SUSPECTED MICROPLASTIC / IMPURITY DETECTED";
+    digitalWrite(BUZZER_PIN, HIGH);
+  } else {
+    v2_particleDetection = 0;
+    v4_buzzerStatus = 0;
+    v3_detectionMessage = "WATER SAMPLE CLEAR";
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+
+  v5_systemStatus = "NORMAL OPERATION (ONLINE)";
+}
+
+// REST API endpoint returning V0 - V8 mapped JSON
+void handleData() {
+  String json = "{";
+  json += "\"V0\":" + String(v0_turbidityRaw) + ",";
+  json += "\"V1\":" + String(v1_irSensorStatus) + ",";
+  json += "\"V2\":" + String(v2_particleDetection) + ",";
+  json += "\"V3\":\"" + v3_detectionMessage + "\",";
+  json += "\"V4\":" + String(v4_buzzerStatus) + ",";
+  json += "\"V5\":\"" + v5_systemStatus + "\",";
+  json += "\"V7\":" + String(v7_currentTurbidity);
+  json += "}";
+
+  // Enable CORS so local VS Code web server can read data
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", json);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(TURBIDITY_PIN, INPUT);
+  pinMode(IR_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  Wire.begin(SDA_PIN, SCL_PIN);
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Connecting WiFi");
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 25) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  lcd.clear();
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi Connected! IP: " + WiFi.localIP().toString());
+    
+    // Register mDNS domain: http://microplastic.local
+    if (MDNS.begin("microplastic")) {
+      MDNS.addService("http", "tcp", 80);
+      Serial.println("mDNS Responder started: http://microplastic.local");
+    }
+
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Connected");
+    lcd.setCursor(0, 1);
+    lcd.print("microplastic.loc");
+  } else {
+    Serial.println("\nWiFi Connection Failed");
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Error!");
+  }
+
+  delay(1500);
+  lcd.clear();
+
+  server.on("/data", handleData);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+
+  if (millis() - lastSensorRead >=
